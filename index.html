@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>狼人杀对局数据库 · 只读查询</title>
+<style>
+:root{
+  --bg:#f5f7fa; --card:#ffffff; --line:#e4e8ef; --text:#1e2430; --muted:#6b7484;
+  --accent:#2563eb; --accent-soft:#eef4ff; --shadow:0 1px 3px rgba(20,30,60,.06);
+  --good:#3ba55d; --wolf:#e04b4b; --third:#a970ff; --var:#8b93a3;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}
+a{color:var(--accent);text-decoration:none}
+button,input,select{font:inherit;color:inherit}
+.hd{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;box-shadow:var(--shadow)}
+.hd-in{max-width:1240px;margin:auto;padding:12px 20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:230px}
+.logo{width:40px;height:40px;border-radius:11px;background:var(--accent-soft);display:grid;place-items:center;font-size:22px}
+.brand h1{margin:0;font-size:17px;font-weight:650;letter-spacing:.2px}
+.brand .sub{margin:1px 0 0;font-size:12px;color:var(--muted)}
+.hd-right{display:flex;gap:10px;align-items:center;flex:1;justify-content:flex-end;flex-wrap:wrap}
+.search{width:min(400px,100%);padding:9px 13px;border:1px solid var(--line);border-radius:9px;background:#fafbfd;outline:none}
+.search:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px var(--accent-soft)}
+.btn{padding:8px 14px;border:1px solid var(--line);background:#fff;border-radius:8px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:hover{background:#1d4fd7;color:#fff}
+.tabs{max-width:1240px;margin:16px auto 0;padding:0 20px;display:flex;gap:6px;flex-wrap:wrap}
+.tab{padding:8px 16px;border:1px solid transparent;background:transparent;border-radius:9px;cursor:pointer;color:var(--muted);font-size:13px}
+.tab:hover{background:#ebeff6;color:var(--text)}
+.tab.on{background:var(--card);border-color:var(--line);color:var(--accent);font-weight:600;box-shadow:var(--shadow)}
+main{max-width:1240px;margin:0 auto;padding:18px 20px 60px}
+.pane.hide{display:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow);margin-bottom:16px}
+.card h2{margin:0 0 14px;font-size:15px;font-weight:650}
+.card h3{margin:0 0 10px;font-size:14px;font-weight:650}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+.kpi .n{font-size:25px;font-weight:700;letter-spacing:-.5px;line-height:1.2}
+.kpi .l{font-size:12px;color:var(--muted);margin-top:3px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:end;background:var(--card);border:1px solid var(--line);
+  border-radius:12px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--shadow)}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld label{font-size:11px;color:var(--muted);font-weight:600}
+.fld input,.fld select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#fafbfd;min-width:118px;outline:none}
+.fld input:focus,.fld select:focus{border-color:var(--accent);background:#fff}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 2px 10px;flex-wrap:wrap}
+.bar .cnt{color:var(--muted);font-size:12px}
+.tbl-wrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{background:#f8fafd;text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);white-space:nowrap;font-weight:600;color:#4a5364;font-size:12px}
+td{padding:8px 11px;border-bottom:1px solid #f0f2f6;vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:#f5f8ff}
+tbody tr.open{background:var(--accent-soft)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;border:1px solid;line-height:1.7;white-space:nowrap}
+.tag{display:inline-block;padding:1px 7px;border-radius:6px;background:#f1f4f9;border:1px solid var(--line);font-size:11.5px;margin:1px 3px 1px 0;white-space:nowrap}
+.pill{display:inline-block;padding:2px 9px;border-radius:7px;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600}
+.detail{margin-top:14px;background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+.detail .dh{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.detail .dh h2{margin:0;font-size:16px}
+.note{background:#fbfcfe;border:1px dashed var(--line);border-radius:8px;padding:9px 12px;color:var(--muted);font-size:12.5px;margin-top:10px;white-space:pre-wrap}
+.bar-row{display:flex;align-items:center;gap:9px;margin:7px 0;font-size:12.5px}
+.bar-row .lb{width:88px;flex-shrink:0}
+.bar-row .track{flex:1;height:9px;background:#eef1f6;border-radius:99px;overflow:hidden}
+.bar-row .fill{height:100%;border-radius:99px}
+.bar-row .v{width:74px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+.empty{padding:34px;text-align:center;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:12px}
+.hint{font-size:12px;color:var(--muted);margin:8px 2px 0}
+.warn{background:#fff8ed;border:1px solid #f6dfae;color:#8a5a10;border-radius:9px;padding:10px 13px;font-size:12.5px;margin-bottom:14px}
+.toolbox label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+.toolbox input,.toolbox select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fafbfd}
+.toolbox .btn{margin-top:10px;width:100%}
+.res{margin-top:12px;font-size:13px}
+.res .line{padding:6px 0;border-bottom:1px solid #f0f2f6}
+.res .line:last-child{border-bottom:0}
+.hot{color:#c0392b;font-weight:600}
+footer{max-width:1240px;margin:auto;padding:0 20px 40px;color:var(--muted);font-size:12px}
+@media(max-width:640px){.hd-in{padding:10px 14px}.tabs{padding:0 14px}main{padding:14px 14px 40px}.search{width:100%}.hd-right{width:100%}}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-in">
+    <div class="brand">
+      <div class="logo">🐺</div>
+      <div><h1>狼人杀对局数据库</h1><p class="sub">只读查询 · 快照 <span id="genTime">—</span></p></div>
+    </div>
+    <div class="hd-right">
+      <input id="globalQ" class="search" placeholder="🔍 全局搜索：玩家 / 板子 / 身份 / 技能日志…" autocomplete="off">
+      <button class="btn" id="btnExport" title="把整份数据快照下载成 JSON">⬇ 导出 JSON</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab on" data-tab="overview">📊 概览</button>
+  <button class="tab" data-tab="games">📋 对局</button>
+  <button class="tab" data-tab="players">👤 玩家</button>
+  <button class="tab" data-tab="boards">🎴 板子</button>
+  <button class="tab" data-tab="roles">🎭 身份</button>
+  <button class="tab" data-tab="tools">🔍 查询工具</button>
+  <button class="tab" data-tab="search">🧭 搜索结果</button>
+</nav>
+
+<main>
+  <section class="pane" id="pane-overview"></section>
+
+  <section class="pane hide" id="pane-games">
+    <div class="filters" id="gameFilters">
+      <div class="fld"><label>日期从</label><input type="date" id="gfFrom"></div>
+      <div class="fld"><label>日期到</label><input type="date" id="gfTo"></div>
+      <div class="fld"><label>板子</label><select id="gfBoard"></select></div>
+      <div class="fld"><label>人数</label><select id="gfSize"></select></div>
+      <div class="fld"><label>胜方</label><select id="gfWinner"></select></div>
+      <div class="fld"><label>胜法</label><select id="gfWinType"></select></div>
+      <div class="fld"><label>参战玩家</label><input id="gfPlayer" placeholder="名字或别名" list="playerList"></div>
+      <div class="fld"><label>排序</label><select id="gfSort">
+        <option value="latest">最新优先</option><option value="earliest">最早优先</option><option value="id">局号倒序</option>
+      </select></div>
+      <button class="btn" id="gfReset">重置</button>
+    </div>
+    <div class="bar"><span class="cnt" id="gamesCount"></span><span class="hint">点任意一行展开 12 座身份与技能日志</span></div>
+    <div id="gamesList"></div>
+    <div id="gameDetail"></div>
+  </section>
+
+  <section class="pane hide" id="pane-players">
+    <div class="filters">
+      <div class="fld"><label>搜索玩家</label><input id="pfQ" placeholder="名字或别名"></div>
+      <div class="fld"><label>最少场次</label><input type="number" id="pfMin" value="3" min="0" max="200" style="width:90px"></div>
+      <div class="fld"><label>排序</label><select id="pfSort">
+        <option value="winrate">胜率</option><option value="games">场次</option>
+        <option value="wolfrate">拿狼率</option><option value="name">名字</option>
+      </select></div>
+    </div>
+    <div class="bar"><span class="cnt" id="playersCount"></span><span class="hint">胜率 = 本人终阵营 == 本局胜方阵营；含别名合并后的主名</span></div>
+    <div id="playersList"></div>
+    <div id="playerDetail"></div>
+  </section>
+
+  <section class="pane hide" id="pane-boards">
+    <div class="filters">
+      <div class="fld"><label>搜索板子</label><input id="bfQ" placeholder="板子名或身份名"></div>
+      <div class="fld"><label>人数</label><select id="bfSize"></select></div>
+      <div class="fld"><label>排序</label><select id="bfSort">
+        <option value="stale">最久没开</option><option value="games">开局数</option><option value="name">名称</option>
+      </select></div>
+    </div>
+    <div class="bar"><span class="cnt" id="boardsCount"></span><span class="hint">从未开过的板子「距今」标为 —，排最前；点行看构成与规则</span></div>
+    <div id="boardsList"></div>
+    <div id="boardDetail"></div>
+  </section>
+
+  <section class="pane hide" id="pane-roles">
+    <div class="filters">
+      <div class="fld"><label>搜索身份</label><input id="rfQ" placeholder="身份名"></div>
+      <div class="fld"><label>阵营</label><select id="rfFaction"></select></div>
+      <div class="fld"><label>排序</label><select id="rfSort">
+        <option value="uses">使用次数</option><option value="winrate">胜率</option><option value="name">名称</option>
+      </select></div>
+    </div>
+    <div class="bar"><span class="cnt" id="rolesCount"></span></div>
+    <div id="rolesList"></div>
+    <div id="roleDetail"></div>
+  </section>
+
+  <section class="pane hide" id="pane-tools">
+    <div class="grid3">
+      <div class="card toolbox">
+        <h2>👤 玩家上次玩</h2>
+        <label>玩家名（支持别名）</label>
+        <input id="tqName" placeholder="输入玩家名" list="playerList">
+        <button class="btn pri" id="btnLast">查询</button>
+        <div class="res" id="resLast"><span class="muted">输入名字后点查询</span></div>
+      </div>
+      <div class="card toolbox">
+        <h2>🧊 板子冷宫榜</h2>
+        <label>标红阈值（天）</label>
+        <input type="number" id="tqDays" value="60" min="0" max="9999">
+        <button class="btn pri" id="btnStale">列出最久没开的板子</button>
+        <div class="res" id="resStale"><span class="muted">点上方按钮生成榜单</span></div>
+      </div>
+      <div class="card toolbox">
+        <h2>🎲 随机抽板子</h2>
+        <label>按人数筛选（可选）</label>
+        <select id="tqSize"></select>
+        <button class="btn pri" id="btnRandom">抽一个</button>
+        <div class="res" id="resRandom"><span class="muted">从库里均匀随机抽一个板子</span></div>
+      </div>
+    </div>
+    <datalist id="playerList"></datalist>
+  </section>
+
+  <section class="pane hide" id="pane-search"><div id="searchOut"></div></section>
+</main>
+
+<footer>
+  <div id="footInfo"></div>
+  <div style="margin-top:6px">本页面为<strong>静态只读快照</strong>：数据来自 SQLite 数据库导出的 data.js，页面不连服务器、不写库。修改数据请在本地数据库操作后重新导出。</div>
+</footer>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  "use strict";
+  const D = window.WW_DATA || null;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+  const facName = id => (D.factions[id] || {}).name || "未知";
+  const facColor = id => (D.factions[id] || {}).color || "#8b93a3";
+  const rate = (a, b) => b ? Math.round(a * 1000 / b) / 10 : 0;
+  const pct = v => v + "%";
+  const dateOf = s => s ? s.slice(0, 10) : "";
+  const daysSince = s => {
+    if (!s) return null;
+    const t = Date.parse(s.replace(" ", "T"));
+    return isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000);
+  };
+  const badge = (txt, color) => '<span class="badge" style="color:' + color +
+    ';border-color:' + color + '55;background:' + color + '14">' + esc(txt) + "</span>";
+  const winnerBadge = w => badge(facName(w), facColor(w));
+  const emptyBox = t => '<div class="empty">' + esc(t) + "</div>";
+  const table = (cols, rows) => {
+    if (!rows.length) return emptyBox("没有符合条件的记录");
+    return '<div class="tbl-wrap"><table><thead><tr>' +
+      cols.map(c => '<th' + (c.num ? ' class="num"' : "") + ">" + esc(c.t) + "</th>").join("") +
+      "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div>";
+  };
+  const cell = (v, num) => "<td" + (num ? ' class="num"' : "") + ">" + v + "</td>";
+  const sortBy = (arr, fn, dir) => arr.slice().sort((a, b) => {
+    const x = fn(a), y = fn(b);
+    return (x < y ? -1 : x > y ? 1 : 0) * (dir === "desc" ? -1 : 1);
+  });
+
+  const STATE = {
+    tab: "overview", q: "",
+    gf: { from: "", to: "", board: "", size: "", winner: "", winType: "", player: "", sort: "latest" },
+    openGame: null, openPlayer: null, openBoard: null, openRole: null,
+  };
+
+  /* ---------------- 纯计算（可在 Node 里对拍） ---------------- */
+  function resolvePlayer(q) {
+    if (!q) return null;
+    const s = q.trim();
+    if (!s) return null;
+    for (const p of D.players) if (p.name === s) return p;
+    for (const p of D.players) if ((p.aliases || []).some(a => a === s)) return p;
+    for (const p of D.players) if (p.name.indexOf(s) >= 0) return p;
+    for (const p of D.players) if ((p.aliases || []).some(a => a.indexOf(s) >= 0)) return p;
+    return null;
+  }
+
+  function gameFiltered() {
+    const f = STATE.gf;
+    let pid = null;
+    if (f.player) { const p = resolvePlayer(f.player); pid = p ? p.name : "\u0000"; }
+    const out = D.games.filter(g => {
+      const d = dateOf(g.played_at);
+      if (f.from && (!d || d < f.from)) return false;
+      if (f.to && (!d || d > f.to)) return false;
+      if (f.board && String(g.board_id) !== String(f.board)) return false;
+      if (f.size && String(g.player_count) !== String(f.size)) return false;
+      if (f.winner && String(g.winner) !== String(f.winner)) return false;
+      if (f.winType !== "") {
+        if (f.winType === "__blank__" ? !!g.win_type : g.win_type !== f.winType) return false;
+      }
+      if (pid && !g.seats.some(s => s.player === pid)) return false;
+      return true;
+    });
+    if (f.sort === "id") return sortBy(out, g => g.id, "desc");
+    if (f.sort === "earliest") return sortBy(out, g => (g.played_at || "9999") + "#" + String(g.id).padStart(6, "0"), "asc");
+    return sortBy(out, g => (g.played_at || "") + "#" + String(g.id).padStart(6, "0"), "desc");
+  }
+
+  function playerRows() {
+    const m = new Map();
+    D.games.forEach(g => g.seats.forEach(s => {
+      if (!m.has(s.player)) m.set(s.player, []);
+      m.get(s.player).push({ g, s });
+    }));
+    return [...m.entries()].map(([name, rs]) => {
+      rs.sort((a, b) => (a.g.played_at || "").localeCompare(b.g.played_at || "") || a.g.id - b.g.id);
+      const n = rs.length;
+      const wins = rs.filter(x => x.g.winner === x.s.eff_faction_id).length;
+      const wolf = rs.filter(x => x.s.eff_faction_id === 2).length;
+      const cnt = {};
+      rs.forEach(x => { cnt[x.s.role] = (cnt[x.s.role] || 0) + 1; });
+      const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 3);
+      const dated = rs.filter(x => x.g.played_at);
+      const last = dated.length ? dated[dated.length - 1] : null;
+      const p = D.players.find(x => x.name === name);
+      return {
+        name, aliases: p ? (p.aliases || []) : [], games: n, wins,
+        winrate: rate(wins, n), wolf, wolfrate: rate(wolf, n),
+        top, lastPlayed: last ? last.g.played_at : "", lastGame: last,
+        days: last ? daysSince(last.g.played_at) : null,
+      };
+    });
+  }
+
+  function boardRows() {
+    return D.boards.map(b => {
+      const gs = D.games.filter(g => g.board_id === b.id);
+      const dated = gs.filter(g => g.played_at).map(g => g.played_at).sort();
+      const last = dated.length ? dated[dated.length - 1] : "";
+      return { b, games: gs.length, last, days: last ? daysSince(last) : null };
+    });
+  }
+
+  function roleRows() {
+    return D.roles.map(r => {
+      let uses = 0, wins = 0;
+      const gids = [];
+      D.games.forEach(g => g.seats.forEach(s => {
+        if (s.role === r.name) {
+          uses++;
+          if (g.winner === s.eff_faction_id) wins++;
+          if (gids.indexOf(g.id) < 0) gids.push(g.id);
+        }
+      }));
+      return { r, uses, wins, winrate: rate(wins, uses), gids };
+    });
+  }
+
+  window.WW_CALC = {
+    resolvePlayer, gameFiltered, playerRows, boardRows, roleRows, daysSince, rate, STATE,
+    renderOverview, renderGames, renderPlayers, renderBoards, renderRoles, renderSearch,
+    doLast, doStale, doRandom, setTab, renderAll,
+  };
+
+  if (typeof document === "undefined") return;   // Node 对拍时只加载计算层
+
+  /* ---------------- 渲染 ---------------- */
+  function gameRow(g) {
+    const dead = g.seats.filter(s => !s.survived).length;
+    return '<tr class="clickable' + (STATE.openGame === g.id ? " open" : "") + '" data-game="' + g.id + '">' +
+      cell("g" + g.id) + cell(g.played_at ? esc(g.played_at) : '<span class="muted">日期待补</span>') +
+      cell(esc(g.board)) + cell(g.player_count, true) + cell(winnerBadge(g.winner)) +
+      cell(g.win_type ? esc(g.win_type) : '<span class="muted">未填</span>') +
+      cell(dead + " / " + g.seats.length, true) + "</tr>";
+  }
+
+  function renderGames() {
+    const list = gameFiltered();
+    $("#gamesCount").textContent = "共 " + list.length + " / " + D.games.length + " 局";
+    $("#gamesList").innerHTML = table(
+      [{ t: "局号" }, { t: "日期" }, { t: "板子" }, { t: "人数", num: 1 },
+       { t: "胜方" }, { t: "胜法" }, { t: "出局/座位", num: 1 }],
+      list.map(gameRow));
+    $("#gameDetail").innerHTML = STATE.openGame != null ? gameDetail(STATE.openGame) : "";
+  }
+
+  function gameDetail(id) {
+    const g = D.games.find(x => x.id === id);
+    if (!g) return "";
+    const seats = g.seats.map(s => {
+      const st = s.survived ? '<span style="color:var(--good)">存活</span>'
+        : '<span style="color:var(--wolf)">' + esc(s.death_cause || "出局") +
+          (s.death_round ? " · 第" + s.death_round + "轮" : "") + "</span>";
+      const marks = (s.sheriff ? ' <span class="tag">警长</span>' : "") + (s.mvp ? ' <span class="tag">MVP</span>' : "");
+      return "<tr>" + cell(s.seat, true) + cell(esc(s.player) + marks) +
+        cell(esc(s.role)) + cell(badge(s.faction, facColor(s.eff_faction_id))) +
+        cell(st) + cell(esc(s.note || "—")) + "</tr>";
+    });
+    const skills = g.skills.length ? g.skills.map(k =>
+      "<tr>" + cell(k.round, true) + cell(esc(k.actor || "—")) + cell(esc(k.action)) +
+      cell(esc(k.target || "—")) + cell(esc(k.result || "—")) + "</tr>").join("") : "";
+    return '<div class="detail"><div class="dh"><h2>g' + g.id + " · " + esc(g.board) + "</h2>" +
+      '<div>' + winnerBadge(g.winner) + ' <span class="pill">' + esc(g.win_type || "胜法未填") + "</span></div></div>" +
+      '<div class="small muted">日期 ' + esc(g.played_at || "待补") + " · " + g.player_count + " 人 · " +
+      g.seats.length + " 座 · " + g.skills.length + " 条技能日志</div>" +
+      table([{ t: "座" }, { t: "玩家" }, { t: "身份" }, { t: "终阵营" }, { t: "结局" }, { t: "备注" }], seats) +
+      (skills ? '<h3 style="margin:18px 0 10px">技能日志</h3>' +
+        table([{ t: "轮" }, { t: "发动者" }, { t: "动作" }, { t: "目标" }, { t: "结果" }], g.skills.map(k =>
+          "<tr>" + cell(k.round, true) + cell(esc(k.actor || "—")) + cell(esc(k.action)) +
+          cell(esc(k.target || "—")) + cell(esc(k.result || "—")) + "</tr>")) : "") +
+      (g.note ? '<div class="note">' + esc(g.note) + "</div>" : "") + "</div>";
+  }
+
+  function renderOverview() {
+    const c = D.counts;
+    const dated = D.games.filter(g => g.played_at).map(g => g.played_at).sort();
+    const range = dated.length ? dateOf(dated[0]) + " ~ " + dateOf(dated[dated.length - 1]) : "—";
+    const byW = {};
+    D.games.forEach(g => { const k = g.winner || 0; byW[k] = (byW[k] || 0) + 1; });
+    const byT = {};
+    D.games.forEach(g => { const k = g.win_type || "未填"; byT[k] = (byT[k] || 0) + 1; });
+    const bars = (obj, colorFn) => Object.entries(obj).sort((a, b) => b[1] - a[1]).map(([k, v]) =>
+      '<div class="bar-row"><div class="lb">' + esc(k) + '</div><div class="track"><div class="fill" style="width:' +
+      rate(v, D.games.length) + "%;background:" + colorFn(k) + '"></div></div><div class="v">' +
+      v + " 局 · " + pct(rate(v, D.games.length)) + "</div></div>").join("");
+    const missDate = D.games.filter(g => !g.played_at).length;
+    const missWin = D.games.filter(g => !g.win_type).length;
+    const recent = sortBy(D.games, g => (g.played_at || "") + "#" + String(g.id).padStart(6, "0"), "desc").slice(0, 8);
+    $("#pane-overview").innerHTML =
+      (D.anonymized ? '<div class="warn">这份快照已做玩家昵称脱敏（玩家01…）。</div>' : "") +
+      '<div class="kpis">' +
+        [["对局", c.games], ["玩家", c.players], ["板子", c.boards], ["身份", c.roles],
+         ["座位记录", c.seats], ["技能日志", c.skills]].map(x =>
+          '<div class="kpi"><div class="n">' + x[1] + '</div><div class="l">' + x[0] + "</div></div>").join("") +
+      "</div>" +
+      '<div class="grid2">' +
+        '<div class="card"><h2>阵营胜负分布</h2>' + bars(
+          Object.fromEntries(Object.entries(byW).map(([k, v]) => [facName(k), v])),
+          k => facColor(Object.keys(D.factions).find(x => facName(x) === k) || 0)) +
+          '<div class="hint">按 game.winner_faction_id 统计</div></div>' +
+        '<div class="card"><h2>胜法分布</h2>' + bars(byT, () => "#2563eb") +
+          '<div class="hint">共 ' + missWin + " 局未填胜法</div></div>" +
+      "</div>" +
+      '<div class="card"><h2>最近 8 局</h2>' +
+        table([{ t: "局号" }, { t: "日期" }, { t: "板子" }, { t: "人数", num: 1 },
+               { t: "胜方" }, { t: "胜法" }], recent.map(g =>
+          '<tr class="clickable" data-game="' + g.id + '" data-jump="games">' + cell("g" + g.id) +
+          cell(g.played_at ? esc(g.played_at) : '<span class="muted">待补</span>') + cell(esc(g.board)) +
+          cell(g.player_count, true) + cell(winnerBadge(g.winner)) +
+          cell(g.win_type ? esc(g.win_type) : '<span class="muted">未填</span>') + "</tr>")) +
+      "</div>" +
+      '<div class="card"><h2>数据完整度</h2><div class="bar-row"><div class="lb">日期范围</div><div class="v" style="width:auto;text-align:left">' +
+        esc(range) + '</div></div><div class="small muted">缺日期 ' + missDate + " 局 · 缺胜法 " + missWin +
+        " 局 · 快照生成于 " + esc(D.generated) + "</div></div>";
+  }
+
+  function renderPlayers() {
+    const q = ($("#pfQ").value || "").trim();
+    const min = parseInt($("#pfMin").value, 10) || 0;
+    const sk = $("#pfSort").value;
+    let rows = playerRows().filter(p => p.games >= min);
+    if (q) rows = rows.filter(p => p.name.indexOf(q) >= 0 || p.aliases.some(a => a.indexOf(q) >= 0));
+    rows = sortBy(rows, p => sk === "games" ? p.games : sk === "wolfrate" ? p.wolfrate :
+      sk === "name" ? p.name : p.winrate, sk === "name" ? "asc" : "desc");
+    $("#playersCount").textContent = "共 " + rows.length + " 位玩家（库内 " + D.players.length + " 位）";
+    $("#playersList").innerHTML = table(
+      [{ t: "玩家" }, { t: "场次", num: 1 }, { t: "胜场", num: 1 }, { t: "胜率", num: 1 },
+       { t: "拿狼率", num: 1 }, { t: "常用身份" }, { t: "上次玩" }, { t: "距今(天)", num: 1 }, { t: "别名" }],
+      rows.map(p => '<tr class="clickable' + (STATE.openPlayer === p.name ? " open" : "") +
+        '" data-player="' + esc(p.name) + '">' + cell(esc(p.name)) + cell(p.games, true) +
+        cell(p.wins, true) + cell(p.winrate + "%", true) + cell(p.wolfrate + "%", true) +
+        cell(p.top.map(x => '<span class="tag">' + esc(x[0]) + "×" + x[1] + "</span>").join("")) +
+        cell(p.lastPlayed ? esc(p.lastPlayed) : '<span class="muted">—</span>') +
+        cell(p.days == null ? "—" : p.days, true) +
+        cell(p.aliases.length ? p.aliases.map(a => '<span class="tag">' + esc(a) + "</span>").join("") : "—") + "</tr>"));
+    $("#playerDetail").innerHTML = STATE.openPlayer ? playerDetail(STATE.openPlayer) : "";
+  }
+
+  function playerDetail(name) {
+    const rs = [];
+    D.games.forEach(g => g.seats.forEach(s => { if (s.player === name) rs.push({ g, s }); }));
+    rs.sort((a, b) => (b.g.played_at || "").localeCompare(a.g.played_at || "") || b.g.id - a.g.id);
+    const p = D.players.find(x => x.name === name);
+    const wins = rs.filter(x => x.g.winner === x.s.eff_faction_id).length;
+    return '<div class="detail"><div class="dh"><h2>' + esc(name) + "</h2>" +
+      '<span class="pill">' + rs.length + " 局 · " + wins + " 胜 · " + rate(wins, rs.length) + "%</span></div>" +
+      (p && p.aliases.length ? '<div class="small muted">别名：' + esc(p.aliases.join("、")) + "</div>" : "") +
+      table([{ t: "局号" }, { t: "日期" }, { t: "板子" }, { t: "座", num: 1 },
+             { t: "身份" }, { t: "终阵营" }, { t: "结果" }, { t: "本局胜方" }],
+        rs.map(x => "<tr>" + cell("g" + x.g.id) + cell(esc(x.g.played_at || "待补")) +
+          cell(esc(x.g.board)) + cell(x.s.seat, true) + cell(esc(x.s.role)) +
+          cell(badge(x.s.faction, facColor(x.s.eff_faction_id))) +
+          cell(x.g.winner === x.s.eff_faction_id ? '<span style="color:var(--good)">胜</span>' :
+            '<span style="color:var(--muted)">负</span>') +
+          cell(winnerBadge(x.g.winner)) + "</tr>")) + "</div>";
+  }
+
+  function renderBoards() {
+    const q = ($("#bfQ").value || "").trim();
+    const size = $("#bfSize").value, sk = $("#bfSort").value;
+    let rows = boardRows();
+    if (size) rows = rows.filter(r => String(r.b.player_count) === size);
+    if (q) rows = rows.filter(r => r.b.name.indexOf(q) >= 0 || r.b.comp.some(c => c.name.indexOf(q) >= 0));
+    if (sk === "games") rows = sortBy(rows, r => r.games, "desc");
+    else if (sk === "name") rows = sortBy(rows, r => r.b.name, "asc");
+    else rows.sort((a, b) => {
+      if (a.last === "" && b.last !== "") return -1;
+      if (b.last === "" && a.last !== "") return 1;
+      return a.last.localeCompare(b.last) || a.b.id - b.b.id;
+    });
+    $("#boardsCount").textContent = "共 " + rows.length + " / " + D.boards.length + " 个板子";
+    $("#boardsList").innerHTML = table(
+      [{ t: "板子" }, { t: "人数", num: 1 }, { t: "牌数", num: 1 }, { t: "身份构成" },
+       { t: "开局", num: 1 }, { t: "上次开" }, { t: "距今(天)", num: 1 }],
+      rows.map(r => '<tr class="clickable' + (STATE.openBoard === r.b.id ? " open" : "") +
+        '" data-board="' + r.b.id + '">' + cell(esc(r.b.name)) + cell(r.b.player_count, true) +
+        cell(r.b.comp.reduce((s, c) => s + c.cnt, 0), true) +
+        cell(r.b.comp.slice(0, 6).map(c => '<span class="tag">' + esc(c.name) + (c.cnt > 1 ? "×" + c.cnt : "") +
+          "</span>").join("") + (r.b.comp.length > 6 ? '<span class="muted small"> +' + (r.b.comp.length - 6) + "</span>" : "")) +
+        cell(r.games, true) + cell(r.last ? esc(r.last) : '<span class="muted">从未开过</span>') +
+        cell(r.days == null ? "—" : (r.days >= 60 ? '<span class="hot">' + r.days + "</span>" : r.days), true) + "</tr>"));
+    $("#boardDetail").innerHTML = STATE.openBoard != null ? boardDetail(STATE.openBoard) : "";
+  }
+
+  function boardDetail(id) {
+    const r = boardRows().find(x => x.b.id === id);
+    if (!r) return "";
+    const b = r.b;
+    const gs = D.games.filter(g => g.board_id === id);
+    const byFac = {};
+    b.comp.forEach(c => { (byFac[c.faction] = byFac[c.faction] || []).push(c); });
+    const compHtml = Object.entries(byFac).map(([f, list]) =>
+      '<div style="margin:8px 0"><strong class="small">' + esc(f) + "</strong><div>" +
+      list.map(c => '<span class="tag">' + esc(c.name) + (c.cnt > 1 ? " ×" + c.cnt : "") + "</span>").join("") +
+      "</div></div>").join("");
+    const rules = b.rules.length ? table([{ t: "角色" }, { t: "规则项" }, { t: "值" }, { t: "备注" }],
+      b.rules.map(x => "<tr>" + cell(esc(x.role)) + cell(esc(x.key)) + cell(esc(x.value)) +
+        cell(esc(x.note)) + "</tr>")) : '<div class="hint">该板子暂无规则条目</div>';
+    return '<div class="detail"><div class="dh"><h2>板子 ' + b.id + " · " + esc(b.name) + "</h2>" +
+      '<span class="pill">' + r.games + " 局 · 上次 " + esc(r.last || "从未") + "</span></div>" +
+      compHtml + (b.note ? '<div class="note">' + esc(b.note) + "</div>" : "") +
+      '<h3 style="margin:18px 0 10px">板子规则</h3>' + rules +
+      (gs.length ? '<h3 style="margin:18px 0 10px">该板子的对局</h3>' +
+        table([{ t: "局号" }, { t: "日期" }, { t: "胜方" }, { t: "胜法" }], gs.map(g =>
+          '<tr class="clickable" data-game="' + g.id + '" data-jump="games">' + cell("g" + g.id) +
+          cell(esc(g.played_at || "待补")) + cell(winnerBadge(g.winner)) +
+          cell(esc(g.win_type || "未填")) + "</tr>")) : "") + "</div>";
+  }
+
+  function renderRoles() {
+    const q = ($("#rfQ").value || "").trim();
+    const fid = $("#rfFaction").value, sk = $("#rfSort").value;
+    let rows = roleRows();
+    if (q) rows = rows.filter(x => x.r.name.indexOf(q) >= 0);
+    if (fid) rows = rows.filter(x => String(x.r.faction_id) === fid);
+    rows = sortBy(rows, x => sk === "name" ? x.r.name : sk === "winrate" ? x.winrate : x.uses,
+      sk === "name" ? "asc" : "desc");
+    $("#rolesCount").textContent = "共 " + rows.length + " / " + D.roles.length + " 个身份";
+    $("#rolesList").innerHTML = table(
+      [{ t: "身份" }, { t: "阵营" }, { t: "使用次数", num: 1 }, { t: "胜场", num: 1 },
+       { t: "胜率", num: 1 }, { t: "涉及对局", num: 1 }],
+      rows.map(x => '<tr class="clickable' + (STATE.openRole === x.r.name ? " open" : "") +
+        '" data-role="' + esc(x.r.name) + '">' + cell(esc(x.r.name)) +
+        cell(badge(x.r.faction, facColor(x.r.faction_id))) + cell(x.uses, true) +
+        cell(x.wins, true) + cell(x.winrate + "%", true) + cell(x.gids.length, true) + "</tr>"));
+    $("#roleDetail").innerHTML = STATE.openRole ? roleDetail(STATE.openRole) : "";
+  }
+
+  function roleDetail(name) {
+    const rs = [];
+    D.games.forEach(g => g.seats.forEach(s => { if (s.role === name) rs.push({ g, s }); }));
+    rs.sort((a, b) => (b.g.played_at || "").localeCompare(a.g.played_at || "") || b.g.id - a.g.id);
+    return '<div class="detail"><div class="dh"><h2>' + esc(name) + "</h2>" +
+      '<span class="pill">共 ' + rs.length + " 次</span></div>" +
+      table([{ t: "局号" }, { t: "日期" }, { t: "板子" }, { t: "座", num: 1 },
+             { t: "玩家" }, { t: "终阵营" }, { t: "存活" }],
+        rs.map(x => '<tr class="clickable" data-game="' + x.g.id + '" data-jump="games">' +
+          cell("g" + x.g.id) + cell(esc(x.g.played_at || "待补")) + cell(esc(x.g.board)) +
+          cell(x.s.seat, true) + cell(esc(x.s.player)) +
+          cell(badge(x.s.faction, facColor(x.s.eff_faction_id))) +
+          cell(x.s.survived ? "是" : esc(x.s.death_cause || "否")) + "</tr>")) + "</div>";
+  }
+
+  function renderSearch() {
+    const q = STATE.q.trim();
+    if (!q) { $("#searchOut").innerHTML = emptyBox("在顶部搜索框输入关键词，例如玩家名、板子名、身份名或技能动作"); return; }
+    const low = q.toLowerCase();
+    const hit = s => String(s || "").toLowerCase().indexOf(low) >= 0;
+    const players = D.players.filter(p => hit(p.name) || (p.aliases || []).some(hit));
+    const boards = D.boards.filter(b => hit(b.name) || b.comp.some(c => hit(c.name)));
+    const roles = D.roles.filter(r => hit(r.name));
+    const games = D.games.filter(g => hit(g.board) || hit(g.note) || hit(g.win_type) ||
+      g.seats.some(s => hit(s.player) || hit(s.role)));
+    const skills = [];
+    D.games.forEach(g => g.skills.forEach(k => {
+      if (hit(k.actor) || hit(k.action) || hit(k.target) || hit(k.result))
+        skills.push({ g, k });
+    }));
+    const sec = (title, n, body) => '<div class="card"><h2>' + title + ' <span class="pill">' + n + "</span></h2>" + body + "</div>";
+    const list = (items, fn) => items.length ? items.map(fn).join("") : '<div class="hint">无匹配</div>';
+    $("#searchOut").innerHTML =
+      '<div class="bar"><span class="cnt">关键词「' + esc(q) + "」：玩家 " + players.length + " · 板子 " +
+        boards.length + " · 身份 " + roles.length + " · 对局 " + games.length + " · 技能日志 " + skills.length + "</span></div>" +
+      '<div class="grid2">' +
+        sec("👤 玩家", players.length, list(players, p =>
+          '<div class="line"><a href="#" data-jump="players" data-player="' + esc(p.name) + '">' + esc(p.name) + "</a>" +
+          (p.aliases.length ? ' <span class="muted small">别名：' + esc(p.aliases.join("、")) + "</span>" : "") + "</div>")) +
+        sec("🎴 板子", boards.length, list(boards, b =>
+          '<div class="line"><a href="#" data-jump="boards" data-board="' + b.id + '">' + esc(b.name) + "</a>" +
+          ' <span class="muted small">' + b.comp.length + " 种身份</span></div>")) +
+        sec("🎭 身份", roles.length, list(roles, r =>
+          '<div class="line"><a href="#" data-jump="roles" data-role="' + esc(r.name) + '">' + esc(r.name) +
+          "</a> " + badge(r.faction, facColor(r.faction_id)) + "</div>")) +
+        sec("📋 对局", games.length, list(games.slice(0, 40), g =>
+          '<div class="line"><a href="#" data-jump="games" data-game="' + g.id + '">g' + g.id + " · " +
+          esc(g.board) + "</a> <span class=\"muted small\">" + esc(g.played_at || "日期待补") + "</span></div>")) +
+      "</div>" +
+      sec("⚡ 技能日志", skills.length, skills.length ?
+        table([{ t: "局号" }, { t: "轮", num: 1 }, { t: "发动者" }, { t: "动作" }, { t: "目标" }, { t: "结果" }],
+          skills.slice(0, 60).map(x => '<tr class="clickable" data-jump="games" data-game="' + x.g.id + '">' +
+            cell("g" + x.g.id) + cell(x.k.round, true) + cell(esc(x.k.actor || "—")) +
+            cell(esc(x.k.action)) + cell(esc(x.k.target || "—")) + cell(esc(x.k.result || "—")) + "</tr>")) +
+        (skills.length > 60 ? '<div class="hint">仅显示前 60 条，共 ' + skills.length + " 条</div>" : "")
+        : '<div class="hint">无匹配</div>');
+  }
+
+  /* ---------------- 查询工具 ---------------- */
+  function doLast() {
+    const p = resolvePlayer($("#tqName").value);
+    if (!p) { $("#resLast").innerHTML = '<span class="hot">没找到这个玩家（可试别名）</span>'; return; }
+    const rs = [];
+    D.games.forEach(g => g.seats.forEach(s => { if (s.player === p.name) rs.push({ g, s }); }));
+    const dated = rs.filter(x => x.g.played_at).sort((a, b) =>
+      (a.g.played_at + "#" + a.g.id).localeCompare(b.g.played_at + "#" + b.g.id));
+    const last = dated.length ? dated[dated.length - 1] : null;
+    $("#resLast").innerHTML =
+      '<div class="line"><strong>' + esc(p.name) + "</strong>" +
+      (p.aliases.length ? ' <span class="muted small">别名：' + esc(p.aliases.join("、")) + "</span>" : "") + "</div>" +
+      '<div class="line">总场次：<strong>' + rs.length + "</strong></div>" +
+      '<div class="line">上次玩：' + (last ? esc(last.g.played_at) : "—") +
+      (last ? ' <span class="muted">（' + daysSince(last.g.played_at) + " 天前）</span>" : "") + "</div>" +
+      (last ? '<div class="line">那一局：<a href="#" data-jump="games" data-game="' + last.g.id + '">g' +
+        last.g.id + " · " + esc(last.g.board) + "</a>，" + last.s.seat + " 号 " + esc(last.s.role) + "</div>" : "");
+  }
+
+  function doStale() {
+    const th = parseInt($("#tqDays").value, 10) || 0;
+    const rows = boardRows().sort((a, b) => {
+      if (a.last === "" && b.last !== "") return -1;
+      if (b.last === "" && a.last !== "") return 1;
+      return a.last.localeCompare(b.last) || a.b.id - b.b.id;
+    }).slice(0, 20);
+    $("#resStale").innerHTML = table(
+      [{ t: "板子" }, { t: "人数", num: 1 }, { t: "开局", num: 1 }, { t: "距今(天)", num: 1 }],
+      rows.map(r => "<tr>" + cell(esc(r.b.name)) + cell(r.b.player_count, true) + cell(r.games, true) +
+        cell(r.days == null ? "从未" : (r.days >= th ? '<span class="hot">' + r.days + "</span>" : r.days), true) + "</tr>"));
+  }
+
+  function doRandom() {
+    const size = $("#tqSize").value;
+    let bs = D.boards.slice();
+    if (size) bs = bs.filter(b => String(b.player_count) === size);
+    if (!bs.length) { $("#resRandom").innerHTML = '<span class="hot">这个人数没有板子</span>'; return; }
+    const b = bs[Math.floor(Math.random() * bs.length)];
+    const byFac = {};
+    b.comp.forEach(c => { (byFac[c.faction] = byFac[c.faction] || []).push(c); });
+    $("#resRandom").innerHTML = '<div class="line"><strong>' + esc(b.name) + "</strong> " +
+      '<span class="muted small">' + b.player_count + " 人 · 共 " +
+      b.comp.reduce((s, c) => s + c.cnt, 0) + " 张牌</span></div>" +
+      Object.entries(byFac).map(([f, list]) => '<div style="margin-top:6px"><span class="small muted">' + esc(f) +
+        "</span><div>" + list.map(c => '<span class="tag">' + esc(c.name) +
+        (c.cnt > 1 ? " ×" + c.cnt : "") + "</span>").join("") + "</div></div>").join("");
+  }
+
+  /* ---------------- 初始化 / 事件 ---------------- */
+  function fillSelect(el, opts, allLabel) {
+    el.innerHTML = '<option value="">' + esc(allLabel) + "</option>" +
+      opts.map(o => '<option value="' + esc(o.v) + '">' + esc(o.t) + "</option>").join("");
+  }
+
+  function setTab(t) {
+    STATE.tab = t;
+    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+    document.querySelectorAll(".pane").forEach(p => p.classList.toggle("hide", p.id !== "pane-" + t));
+    renderAll();
+  }
+
+  function openGame(id, fromOtherTab) {
+    if (fromOtherTab) { STATE.openGame = id; STATE.tab = "games"; setTab("games"); }
+    else { STATE.openGame = STATE.openGame === id ? null : id; renderGames(); }
+    if (STATE.openGame != null) {
+      const el = $("#gameDetail");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  function renderAll() {
+    if (STATE.tab === "overview") renderOverview();
+    if (STATE.tab === "games") renderGames();
+    if (STATE.tab === "players") renderPlayers();
+    if (STATE.tab === "boards") renderBoards();
+    if (STATE.tab === "roles") renderRoles();
+    if (STATE.tab === "search") renderSearch();
+  }
+
+  function init() {
+    if (!D) { document.body.innerHTML = '<div class="empty">data.js 未加载，请确认与 index.html 在同一目录</div>'; return; }
+    $("#genTime").textContent = D.generated;
+    $("#footInfo").textContent = "数据快照 " + D.generated + " · 对局 " + D.counts.games +
+      " / 玩家 " + D.counts.players + " / 板子 " + D.counts.boards + " / 身份 " + D.counts.roles +
+      (D.anonymized ? " · 已脱敏" : "");
+    $("#playerList").innerHTML = D.players.map(p => '<option value="' + esc(p.name) + '">').join("") +
+      D.players.flatMap(p => (p.aliases || []).map(a => '<option value="' + esc(a) + '">')).join("");
+
+    fillSelect($("#gfBoard"), D.boards.map(b => ({ v: b.id, t: b.name })), "全部板子");
+    const sizes = [...new Set(D.games.map(g => g.player_count))].sort((a, b) => a - b);
+    fillSelect($("#gfSize"), sizes.map(s => ({ v: s, t: s + " 人" })), "全部人数");
+    fillSelect($("#bfSize"), [...new Set(D.boards.map(b => b.player_count))].sort((a, b) => a - b)
+      .map(s => ({ v: s, t: s + " 人" })), "全部人数");
+    fillSelect($("#tqSize"), sizes.map(s => ({ v: s, t: s + " 人" })), "不限人数");
+    fillSelect($("#gfWinner"), Object.entries(D.factions).map(([k, v]) => ({ v: k, t: v.name })), "全部胜方");
+    const wts = [...new Set(D.games.map(g => g.win_type).filter(Boolean))].sort();
+    fillSelect($("#gfWinType"), wts.map(w => ({ v: w, t: w })).concat([{ v: "__blank__", t: "未填" }]), "全部胜法");
+    fillSelect($("#rfFaction"), Object.entries(D.factions).map(([k, v]) => ({ v: k, t: v.name })), "全部阵营");
+
+    const gf = STATE.gf;
+    const bind = (id, key, ev) => $(id).addEventListener(ev || "change", e => { gf[key] = e.target.value; renderGames(); });
+    bind("#gfFrom", "from"); bind("#gfTo", "to"); bind("#gfBoard", "board");
+    bind("#gfSize", "size"); bind("#gfWinner", "winner"); bind("#gfWinType", "winType");
+    bind("#gfPlayer", "player", "input"); bind("#gfSort", "sort");
+    $("#gfReset").onclick = () => {
+      Object.assign(gf, { from: "", to: "", board: "", size: "", winner: "", winType: "", player: "", sort: "latest" });
+      ["#gfFrom", "#gfTo", "#gfBoard", "#gfSize", "#gfWinner", "#gfWinType", "#gfPlayer"].forEach(i => $(i).value = "");
+      $("#gfSort").value = "latest"; STATE.openGame = null; renderGames();
+    };
+    ["#pfQ", "#pfMin", "#pfSort"].forEach(i => $(i).addEventListener(i === "#pfSort" ? "change" : "input", renderPlayers));
+    ["#bfQ", "#bfSize", "#bfSort"].forEach(i => $(i).addEventListener(i === "#bfQ" ? "input" : "change", renderBoards));
+    ["#rfQ", "#rfFaction", "#rfSort"].forEach(i => $(i).addEventListener(i === "#rfQ" ? "input" : "change", renderRoles));
+
+    $("#tabs").addEventListener("click", e => {
+      const b = e.target.closest(".tab"); if (b) setTab(b.dataset.tab);
+    });
+    $("#globalQ").addEventListener("input", e => {
+      STATE.q = e.target.value;
+      if (STATE.tab !== "search") setTab("search"); else renderSearch();
+    });
+    $("#btnExport").onclick = () => {
+      const blob = new Blob([JSON.stringify(D, null, 1)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "werewolf-db-snapshot.json"; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    };
+    $("#btnLast").onclick = doLast;
+    $("#tqName").addEventListener("keydown", e => { if (e.key === "Enter") doLast(); });
+    $("#btnStale").onclick = doStale;
+    $("#btnRandom").onclick = doRandom;
+
+    document.addEventListener("click", e => {
+      const t = e.target.closest("[data-game],[data-player],[data-board],[data-role]");
+      if (!t) return;
+      e.preventDefault();
+      const jump = !!t.dataset.jump;
+      if (t.dataset.game != null) {
+        openGame(Number(t.dataset.game), jump);
+        return;
+      }
+      if (t.dataset.player != null) {
+        const n = t.dataset.player;
+        if (jump) { STATE.tab = t.dataset.jump || "players"; setTab(STATE.tab); }
+        STATE.openPlayer = STATE.openPlayer === n ? null : n;
+        renderPlayers();
+        return;
+      }
+      if (t.dataset.board != null) {
+        const id = Number(t.dataset.board);
+        if (jump) { STATE.tab = t.dataset.jump || "boards"; setTab(STATE.tab); }
+        STATE.openBoard = STATE.openBoard === id ? null : id;
+        renderBoards();
+        return;
+      }
+      if (t.dataset.role != null) {
+        const n = t.dataset.role;
+        if (jump) { STATE.tab = t.dataset.jump || "roles"; setTab(STATE.tab); }
+        STATE.openRole = STATE.openRole === n ? null : n;
+        renderRoles();
+      }
+    });
+
+    renderOverview();
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
+</script>
+</body>
+</html>
