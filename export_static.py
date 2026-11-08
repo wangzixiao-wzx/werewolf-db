@@ -14,6 +14,7 @@ import argparse
 import datetime
 import json
 import os
+import re
 import sqlite3
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -81,6 +82,18 @@ def build(db_path, anonymize=False):
                 s = s.replace(k, name_map[k])
         return s
 
+    # board.note 里混有录入来源（源文件名 / 内部字段名），这些不属于版型规则，
+    # 也不适合公开；保留前面的规则说明，剔除内部片段。
+    INTERNAL_NOTE = re.compile(r"\.txt|记录约定|录入约定|board_role|game_player|"
+                               r"导入补录|由源文档整理|批量导入|20\d\d-\d\d-\d\d")
+
+    def clean_board_note(s):
+        s = (s or "").strip()
+        s = re.sub(r"(来源|批量导入)[:：][^；;。]*\.txt[；;，,\s]*", "", s)
+        s = re.split(r"记录约定[:：]|录入约定[:：]|数据库约定[:：]", s)[0]
+        s = s.strip(" ；;，,")
+        return "" if INTERNAL_NOTE.search(s) else s
+
     boards = []
     for b in con.execute("SELECT id, name, player_count, judge_count, note FROM board ORDER BY id"):
         comp = [
@@ -91,8 +104,10 @@ def build(db_path, anonymize=False):
                 (b["id"],))
         ]
         rules = [
+            # note 全是录入来源备注（由文档导入 / 导入补录 / 内部字段名），
+            # 无规则信息且带内部痕迹，公开快照一律不导出，只保留空列占位。
             {"role": r["rn"] or "", "key": r["rule_key"] or "",
-             "value": r["rule_value"] or "", "note": r["note"] or ""}
+             "value": r["rule_value"] or "", "note": ""}
             for r in con.execute(
                 """SELECT rr.rule_key, rr.rule_value, rr.note, r.name rn
                    FROM board_rule rr LEFT JOIN role r ON r.id = rr.role_id
@@ -100,7 +115,7 @@ def build(db_path, anonymize=False):
         ]
         boards.append({
             "id": b["id"], "name": b["name"], "player_count": b["player_count"],
-            "judge_count": b["judge_count"], "note": b["note"] or "",
+            "judge_count": b["judge_count"], "note": clean_board_note(b["note"]),
             "comp": comp, "rules": rules,
         })
     board_map = {b["id"]: b["name"] for b in boards}
