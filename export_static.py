@@ -94,6 +94,11 @@ def build(db_path, anonymize=False):
         s = s.strip(" ；;，,")
         return "" if INTERNAL_NOTE.search(s) else s
 
+    # 个别历史规则值里混了数据库字段名（例如「final_faction_id 标为狼人阵营」），
+    # 这是录入约定而非版型规则；公开快照改成中文描述，不改动主库原文。
+    def clean_rule_value(s):
+        return (s or "").replace("final_faction_id", "最终阵营")
+
     boards = []
     for b in con.execute("SELECT id, name, player_count, judge_count, note FROM board ORDER BY id"):
         comp = [
@@ -107,7 +112,7 @@ def build(db_path, anonymize=False):
             # note 全是录入来源备注（由文档导入 / 导入补录 / 内部字段名），
             # 无规则信息且带内部痕迹，公开快照一律不导出，只保留空列占位。
             {"role": r["rn"] or "", "key": r["rule_key"] or "",
-             "value": r["rule_value"] or "", "note": ""}
+             "value": clean_rule_value(r["rule_value"]), "note": ""}
             for r in con.execute(
                 """SELECT rr.rule_key, rr.rule_value, rr.note, r.name rn
                    FROM board_rule rr LEFT JOIN role r ON r.id = rr.role_id
