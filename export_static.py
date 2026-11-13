@@ -91,13 +91,25 @@ def build(db_path, anonymize=False):
         s = (s or "").strip()
         s = re.sub(r"(来源|批量导入)[:：][^；;。]*\.txt[；;，,\s]*", "", s)
         s = re.split(r"记录约定[:：]|录入约定[:：]|数据库约定[:：]", s)[0]
-        s = s.strip(" ；;，,")
+        s = re.sub(r"规则详见文档|对局暂未录入|尚无对局", "", s)
+        s = re.sub(r"[；;，,]{2,}", "，", s)
+        s = s.strip(" ；;，,（）()")
         return "" if INTERNAL_NOTE.search(s) else s
 
     # 个别历史规则值里混了数据库字段名（例如「final_faction_id 标为狼人阵营」），
     # 这是录入约定而非版型规则；公开快照改成中文描述，不改动主库原文。
     def clean_rule_value(s):
         return (s or "").replace("final_faction_id", "最终阵营")
+
+    # game.note 里混有「批量导入：20260918xxx.txt」这类录入来源与源文件名，
+    # 公开快照剔除该片段；其余复盘说明仍走玩家名脱敏，本地完整版不受影响。
+    def clean_game_note(s):
+        s = (s or "").strip()
+        if anonymize:
+            s = re.sub(r"(批量导入|导入补录|来源)[:：][^；;。]*\.txt[；;，,\s]*", "", s)
+            if re.search(r"\.txt|20\d{6}|20\d\d-\d\d-\d\d|批量导入|导入补录", s):
+                return ""
+        return nm(s.strip())
 
     boards = []
     for b in con.execute("SELECT id, name, player_count, judge_count, note FROM board ORDER BY id"):
@@ -157,7 +169,7 @@ def build(db_path, anonymize=False):
             "id": g["id"], "played_at": g["played_at"] or "",
             "board_id": g["board_id"], "board": board_map.get(g["board_id"], "?"),
             "player_count": g["player_count"], "winner": g["winner_faction_id"],
-            "win_type": g["win_type"] or "", "note": nm(g["note"] or ""),
+            "win_type": g["win_type"] or "", "note": clean_game_note(g["note"]),
             "seats": seats, "skills": skills,
         })
 
